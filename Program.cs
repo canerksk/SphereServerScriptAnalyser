@@ -70,13 +70,15 @@ namespace SphereServerScriptAnalyser
             AutoUpdater.ShowSkipButton = false;
             AutoUpdater.CheckForUpdateEvent += AutoUpdaterOnCheckForUpdateEvent;
             AutoUpdater.ReportErrors = true;
-            AutoUpdater.Start("https://uosoft.com.tr/api/sphere/script-analyser/Updater.xml");
+            //AutoUpdater.Start("https://uosoft.com.tr/api/sphere/script-analyser/Updater.xml");
+            AutoUpdater.Start("https://raw.githubusercontent.com/canerksk/SphereServerScriptAnalyser/main/Updater.xml");
             AutoUpdater.Mandatory = true;
             AutoUpdater.UpdateMode = Mode.Forced;
             AutoUpdater.TopMost = true;
             // Burada versiyonu geçir
             //AutoUpdater.InstalledVersion = version;
-            AutoUpdater.InstalledVersion = new Version(productVersion);
+            //AutoUpdater.InstalledVersion = new Version(productVersion);
+            AutoUpdater.InstalledVersion = new Version("1.0.0.0");
             AutoUpdater.ShowRemindLaterButton = false;
             AutoUpdater.InstallationPath = Application.StartupPath;
 
