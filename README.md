@@ -14,7 +14,6 @@ It integrates **AutoUpdater.NET** to check for newer versions.
 - Basic pattern/regex validations
 - Language switch & persisted settings
 - **AutoUpdater.NET** integration
-- Uses `AssemblyVersion`, `FileVersion`, `ProductVersion` where appropriate
 
 ### Requirements
 - Windows 10/11
@@ -84,7 +83,6 @@ AutoUpdater.NET entegrasyonu ile yeni sürümleri otomatik kontrol edebilir.
 - Temel desen/Regex kontrolleri
 - Dil seçimi ve kalıcı ayar kaydı (Settings)
 - **AutoUpdater.NET** ile güncelleme kontrolü
-- .NET sürüm bilgileri: `AssemblyVersion`, `FileVersion`, `ProductVersion` kullanımı
 
 ### Gereksinimler
 - Windows 10/11
