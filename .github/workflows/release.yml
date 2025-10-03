@@ -1,0 +1,82 @@
+name: Build & Release (tagged)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"        # örn. v2.1.0
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # release yayımlamak için
+      pages: write      # gh-pages'e basmak için (aşağıdaki action kullanıyor)
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore
+
+      - name: Publish app (self-contained isteğe bağlı)
+        run: |
+          dotnet publish ./YourProject.csproj -c Release -r win-x64 --self-contained false -o out\publish
+          # MSI/EXE üretiyorsan burada çağır (Squirrel/MSIX/Wix vs.)
+          # Wix/MSIX yoksa en azından zip oluşturalım
+          powershell Compress-Archive -Path out\publish\* -DestinationPath out\App-win-x64.zip -Force
+
+      - name: Get tag / version
+        id: meta
+        shell: bash
+        run: |
+          TAG="${GITHUB_REF_NAME}"            # örn: v2.1.0
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          CLEAN="${TAG#v}"                    # 2.1.0
+          IFS='.' read -r MA MI PA <<< "$CLEAN"
+          VER="$MA.${MI:-0}.${PA:-0}.0"       # 4 parçaya tamamla
+          echo "version=${VER}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: Release ${{ steps.meta.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            out/App-win-x64.zip
+
+      - name: Build Updater.xml
+        id: xml
+        shell: bash
+        run: |
+          ASSET_URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/${{ steps.meta.outputs.tag }}/App-win-x64.zip"
+          mkdir -p out/xml
+          cat > out/xml/Updater.xml <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<item>
+  <version>${{ steps.meta.outputs.version }}</version>
+  <url>${ASSET_URL}</url>
+  <changelog>https://github.com/${GITHUB_REPOSITORY}/releases/tag/${{ steps.meta.outputs.tag }}</changelog>
+  <mandatory>false</mandatory>
+</item>
+EOF
+
+      - name: Publish Updater.xml to gh-pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: out/xml
+          # Sonuç URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/Updater.xml
