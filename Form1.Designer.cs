@@ -41,6 +41,8 @@ namespace SphereServerScriptAnalyser
             turkishToolStripMenuItem = new ToolStripMenuItem();
             frCAToolStripMenuItem = new ToolStripMenuItem();
             toolTip1 = new ToolTip(components);
+            settingsToolStripMenuItem = new ToolStripMenuItem();
+            setDefaultEditorToolStripMenuItem = new ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -104,7 +106,7 @@ namespace SphereServerScriptAnalyser
             // 
             // menuStrip1
             // 
-            menuStrip1.Items.AddRange(new ToolStripItem[] { languageToolStripMenuItem });
+            menuStrip1.Items.AddRange(new ToolStripItem[] { languageToolStripMenuItem, settingsToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
             menuStrip1.Size = new Size(646, 24);
@@ -121,23 +123,37 @@ namespace SphereServerScriptAnalyser
             // englishToolStripMenuItem
             // 
             englishToolStripMenuItem.Name = "englishToolStripMenuItem";
-            englishToolStripMenuItem.Size = new Size(180, 22);
+            englishToolStripMenuItem.Size = new Size(106, 22);
             englishToolStripMenuItem.Text = "en-US";
             englishToolStripMenuItem.Click += mienUS_Click;
             // 
             // turkishToolStripMenuItem
             // 
             turkishToolStripMenuItem.Name = "turkishToolStripMenuItem";
-            turkishToolStripMenuItem.Size = new Size(180, 22);
+            turkishToolStripMenuItem.Size = new Size(106, 22);
             turkishToolStripMenuItem.Text = "tr-TR";
             turkishToolStripMenuItem.Click += mitrTR_Click;
             // 
             // frCAToolStripMenuItem
             // 
             frCAToolStripMenuItem.Name = "frCAToolStripMenuItem";
-            frCAToolStripMenuItem.Size = new Size(180, 22);
+            frCAToolStripMenuItem.Size = new Size(106, 22);
             frCAToolStripMenuItem.Text = "fr-CA";
             frCAToolStripMenuItem.Click += mifrCA_Click;
+            // 
+            // settingsToolStripMenuItem
+            // 
+            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { setDefaultEditorToolStripMenuItem });
+            settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
+            settingsToolStripMenuItem.Size = new Size(61, 20);
+            settingsToolStripMenuItem.Text = Properties.Resources.Settings;
+            // 
+            // setDefaultEditorToolStripMenuItem
+            // 
+            setDefaultEditorToolStripMenuItem.Name = "setDefaultEditorToolStripMenuItem";
+            setDefaultEditorToolStripMenuItem.Size = new Size(180, 22);
+            setDefaultEditorToolStripMenuItem.Text = Properties.Resources.SetDefaultEditor;
+            setDefaultEditorToolStripMenuItem.Click += setDefaultEditorToolStripMenuItem_Click;
             // 
             // Form1
             // 
@@ -168,5 +184,7 @@ namespace SphereServerScriptAnalyser
         private ToolStripMenuItem turkishToolStripMenuItem;
         private ToolStripMenuItem frCAToolStripMenuItem;
         private ToolTip toolTip1;
+        private ToolStripMenuItem settingsToolStripMenuItem;
+        private ToolStripMenuItem setDefaultEditorToolStripMenuItem;
     }
 }

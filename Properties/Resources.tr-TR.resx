@@ -192,4 +192,10 @@
   <data name="Language" xml:space="preserve">
     <value>Dil</value>
   </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Ayarlar</value>
+  </data>
+  <data name="SetDefaultEditor" xml:space="preserve">
+    <value>Varsayılan Editor Seç</value>
+  </data>
 </root>

@@ -192,4 +192,10 @@
   <data name="Language" xml:space="preserve">
     <value>Language</value>
   </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SetDefaultEditor" xml:space="preserve">
+    <value>Set Default Editor</value>
+  </data>
 </root>

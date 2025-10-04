@@ -34,5 +34,17 @@ namespace SphereServerScriptAnalyser.Properties {
                 this["Language"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string DefaultEditorPath {
+            get {
+                return ((string)(this["DefaultEditorPath"]));
+            }
+            set {
+                this["DefaultEditorPath"] = value;
+            }
+        }
     }
 }

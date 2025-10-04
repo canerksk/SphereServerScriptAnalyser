@@ -13,6 +13,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
+		<PackageReference Include="FastColoredTextBox.Net6" Version="1.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>

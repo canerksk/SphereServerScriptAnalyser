@@ -250,6 +250,24 @@ namespace SphereServerScriptAnalyser.Properties {
         }
         
         /// <summary>
+        ///   Set Default Editor benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string SetDefaultEditor {
+            get {
+                return ResourceManager.GetString("SetDefaultEditor", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Settings benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string Settings {
+            get {
+                return ResourceManager.GetString("Settings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Select a valid folder. benzeri yerelleştirilmiş bir dize arar.
         /// </summary>
         internal static string StringAValidFolder {

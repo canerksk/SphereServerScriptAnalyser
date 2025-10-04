@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FastColoredTextBoxNS;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -15,6 +16,8 @@ namespace SphereServerScriptAnalyser
     public partial class Form1 : Form
     {
         private readonly Dictionary<string, FileReport> _reportsByPath = new(StringComparer.OrdinalIgnoreCase);
+
+
 
         public Form1()
         {
@@ -215,7 +218,7 @@ namespace SphereServerScriptAnalyser
 
 
 
-                        if (string.IsNullOrWhiteSpace(raw)) 
+                        if (string.IsNullOrWhiteSpace(raw))
                             continue;
 
                         // clear whitespace at the beginning of a line
@@ -532,13 +535,16 @@ namespace SphereServerScriptAnalyser
             private readonly FileReport _report;
             private ListBox lbIssues;
             private RichTextBox rtb;
-            private Button btnOpenFile;
+            private FastColoredTextBox fctb;
+            private static Button btnOpenFile;
+            public static string? _defaultEditorPath;
 
             public IssueViewerForm(FileReport report)
             {
                 _report = report;
                 InitUi();
                 LoadFileAndIssues();
+                LoadEditorPreference();
             }
 
             private void InitUi()
@@ -555,6 +561,7 @@ namespace SphereServerScriptAnalyser
                 };
                 lbIssues.SelectedIndexChanged += LbIssues_SelectedIndexChanged;
 
+                /*
                 rtb = new RichTextBox
                 {
                     Dock = DockStyle.Fill,
@@ -562,6 +569,17 @@ namespace SphereServerScriptAnalyser
                     ReadOnly = true,
                     WordWrap = false
                 };
+                */
+
+                fctb = new FastColoredTextBox
+                {
+                    Dock = DockStyle.Fill,
+                    ReadOnly = true,
+                    ShowLineNumbers = true,   // satır numaraları
+                    WordWrap = false,
+                    Font = new Font("Consolas", 10f)
+                };
+
 
                 btnOpenFile = new Button
                 {
@@ -571,12 +589,13 @@ namespace SphereServerScriptAnalyser
                 };
                 btnOpenFile.Click += BtnOpenFile_Click;
 
-                Controls.Add(rtb);
+                //Controls.Add(rtb);
+                Controls.Add(fctb);
                 Controls.Add(lbIssues);
                 Controls.Add(btnOpenFile);
             }
 
-            private void LoadFileAndIssues()
+            private void LoadFileAndIssuesRichTextBox()
             {
                 try
                 {
@@ -599,13 +618,73 @@ namespace SphereServerScriptAnalyser
                     lbIssues.SelectedIndex = 0;
             }
 
-            private void LbIssues_SelectedIndexChanged(object sender, EventArgs e)
+            private void LoadFileAndIssues()
+            {
+                string content;
+                try { content = File.ReadAllText(_report.Path); }
+                catch (Exception ex) { content = $"{Properties.Resources.TheFileCouldNotBeRead} {ex.Message}"; }
+
+                fctb.Text = content; // içeriği yükle
+
+                lbIssues.Items.Clear();
+                foreach (var issue in _report.Issues.OrderBy(i => i.Line))
+                    lbIssues.Items.Add($"L{issue.Line} – {issue.Type}");
+
+                if (lbIssues.Items.Count > 0) lbIssues.SelectedIndex = 0;
+            }
+
+            private void LbIssues_SelectedIndexChangedRichTextBox(object sender, EventArgs e)
             {
                 if (lbIssues.SelectedIndex < 0)
                     return;
                 var issue = _report.Issues.OrderBy(i => i.Line).ElementAt(lbIssues.SelectedIndex);
                 HighlightLine(issue.Line, Color.LightPink, Color.DarkRed);
             }
+
+            private void LbIssues_SelectedIndexChanged(object sender, EventArgs e)
+            {
+                if (lbIssues.SelectedIndex < 0)
+                    return;
+                var issue = _report.Issues.OrderBy(i => i.Line).ElementAt(lbIssues.SelectedIndex);
+
+                HighlightLineFctb(issue.Line);
+
+                int lineIdx = Math.Max(0, issue.Line - 1);
+                // Satıra kaydır:
+                fctb.Navigate(lineIdx);                      // satırı görünür konuma getirir :contentReference[oaicite:2]{index=2}
+                                                             // Satırı seç (basit highlight):
+                var lineText = lineIdx < fctb.LinesCount ? fctb.Lines[lineIdx] : string.Empty;
+                fctb.Selection = new FastColoredTextBoxNS.Range(fctb, new Place(0, lineIdx), new Place(lineText.Length, lineIdx)); // :contentReference[oaicite:3]{index=3}
+                fctb.DoSelectionVisible();                   // seçimi görünür yapar (scroll) :contentReference[oaicite:4]{index=4}
+            }
+
+            //private readonly Style _issueStyle = new MarkerStyle(new SolidBrush(Color.FromArgb(60, Color.LightPink)));
+
+            private readonly MarkerStyle _highlightStyle = new MarkerStyle(new SolidBrush(Color.FromArgb(60, Color.Red)));
+
+
+            private void HighlightLineFctb(int lineNumber)
+            {
+                if (lineNumber <= 0 || lineNumber > fctb.LinesCount)
+                    return;
+
+                int line = lineNumber - 1;
+
+                // Önce eski highlight'ı temizle
+                fctb.Range.ClearStyle(_highlightStyle);
+
+                // Satır aralığını bul
+                string text = fctb.Lines[line];
+                var range = new FastColoredTextBoxNS.Range(fctb, new Place(0, line), new Place(text.Length, line));
+
+                // Rengi uygula
+                range.SetStyle(_highlightStyle);
+
+                // O satıra kaydır
+                fctb.Navigate(line);
+                fctb.DoSelectionVisible();
+            }
+
 
             private void HighlightLine(int lineNumber, Color backColor, Color foreColor)
             {
@@ -633,7 +712,7 @@ namespace SphereServerScriptAnalyser
                 rtb.ScrollToCaret();
             }
 
-            private void BtnOpenFile_Click(object sender, EventArgs e)
+            private void BtnOpenFile_ClickWithoutCustomEditor(object sender, EventArgs e)
             {
                 try
                 {
@@ -649,6 +728,126 @@ namespace SphereServerScriptAnalyser
                 {
                     MessageBox.Show($"{Properties.Resources.CouldNotOpenFile} {ex.Message}", Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Stop);
                 }
+            }
+
+
+            private int GetSelectedIssueLineOrDefault()
+            {
+                if (_report?.Issues == null || _report.Issues.Count == 0)
+                    return 1;
+
+                // ListBox sıralı ise:
+                if (lbIssues.SelectedIndex >= 0)
+                    return _report.Issues.OrderBy(i => i.Line).ElementAt(lbIssues.SelectedIndex).Line;
+
+                // Seçim yoksa ilk issue
+                return _report.Issues.Min(i => i.Line);
+
+            }
+
+
+            private static string BuildEditorArgs(string editorExePath, string filePath, int line, int col = 1)
+            {
+                var exe = Path.GetFileName(editorExePath).ToLowerInvariant();
+
+                // VS Code
+                if (exe is "code.exe" or "code-insiders.exe")
+                {
+                    // --goto path:line:column
+                    return $"--goto \"{filePath}:{line}:{col}\"";
+                }
+
+                // Notepad++
+                if (exe == "notepad++.exe")
+                {
+                    // -n<line> -c<column> "file"
+                    return $"-n{line} -c{col} \"{filePath}\"";
+                }
+
+                // Sublime Text
+                if (exe is "sublime_text.exe" or "subl.exe")
+                {
+                    // "path:line:column"
+                    return $"\"{filePath}:{line}:{col}\"";
+                }
+
+                // Visual Studio (devenv)
+                if (exe == "devenv.exe")
+                {
+                    // Güvenilir tek adım yok; pratik yaklaşım: aç + komutla goto
+                    // /Edit file ile açar; /Command ile satıra atlamak için VS açıldıktan sonra komutu çalıştırır.
+                    // Çoğu zaman yeterlidir:
+                    return $"/Edit \"{filePath}\" /Command \"Edit.Goto {line}\"";
+                }
+
+                // Tanımadığımız editor: sadece dosyayı ver (satıra gidemez)
+                return $"\"{filePath}\"";
+            }
+
+
+            private void BtnOpenFile_Click(object sender, EventArgs e)
+            {
+                try
+                {
+                    int line = GetSelectedIssueLineOrDefault();
+                    int col = 1; // istersen analizde hesaplayıp gerçek kolonu verebilirsin
+
+                    if (!string.IsNullOrEmpty(_defaultEditorPath) && File.Exists(_defaultEditorPath))
+                    {
+                        var psi = new ProcessStartInfo
+                        {
+                            FileName = _defaultEditorPath,
+                            Arguments = BuildEditorArgs(_defaultEditorPath, _report.Path, line, col),
+                            UseShellExecute = false
+                        };
+                        Process.Start(psi);
+                    }
+                    else
+                    {
+                        // Sistem varsayılanı: satır desteği yok, normal açar
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = _report.Path,
+                            UseShellExecute = true
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"{Properties.Resources.CouldNotOpenFile} {ex.Message}",
+                        Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+
+
+            public void LoadEditorPreference()
+            {
+                _defaultEditorPath = string.IsNullOrWhiteSpace(Properties.Main.Default.DefaultEditorPath)
+                    ? null
+                    : Properties.Main.Default.DefaultEditorPath;
+                UpdateOpenButtonText();
+            }
+
+            public static void SaveEditorPreference(string? path)
+            {
+                _defaultEditorPath = path;
+                Properties.Main.Default.DefaultEditorPath = path ?? string.Empty;
+                Properties.Main.Default.Save();
+                UpdateOpenButtonText();
+            }
+
+            private static void UpdateOpenButtonText()
+            {
+                string suffix = "";
+
+                if (!string.IsNullOrEmpty(_defaultEditorPath) && File.Exists(_defaultEditorPath))
+                {
+                    // exe dosyasının adını göster (örnek: code, notepad++)
+                    var name = Path.GetFileNameWithoutExtension(_defaultEditorPath);
+                    suffix = $" ({name})";
+                }
+
+                btnOpenFile.Text = Properties.Resources.OpenTheFile + suffix;
             }
         }
 
@@ -721,7 +920,6 @@ namespace SphereServerScriptAnalyser
         }
 
 
-
         private void mitrTR_Click(object sender, EventArgs e)
         {
             ChangeCulture("tr-TR");
@@ -736,6 +934,21 @@ namespace SphereServerScriptAnalyser
         {
             ChangeCulture("fr-CA");
         }
+
+        private void setDefaultEditorToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            using var ofd = new OpenFileDialog
+            {
+                Title = "Editör uygulamasını seçin",
+                Filter = "Uygulamalar (*.exe)|*.exe|Tümü (*.*)|*.*",
+                CheckFileExists = true
+            };
+
+            if (ofd.ShowDialog(this) == DialogResult.OK)
+                IssueViewerForm.SaveEditorPreference(ofd.FileName);
+        }
+
+
 
 
 
