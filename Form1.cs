@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -88,7 +88,7 @@ namespace SphereServerScriptAnalyser
                     _reportsByPath[fr.Path] = fr;
                 }
 
-                lblStatus.Text = $"{Properties.Resources.AnalysisCompleted}. {result.Count} {Properties.Resources.FilesWereExamined}, {string.Format(Properties.Resources.ProblemsWereFoundInFiles0, problemFiles.Count)}<";
+                lblStatus.Text = $"{Properties.Resources.AnalysisCompleted}. {result.Count} {Properties.Resources.FilesWereExamined}, {string.Format(Properties.Resources.ProblemsWereFoundInFiles0, problemFiles.Count)}";
             }
             catch (Exception ex)
             {
@@ -98,11 +98,11 @@ namespace SphereServerScriptAnalyser
         }
 
         // tr;
-        // Temel kurallar (ZIP’teki .scp standartlarına göre):
+        // Temel kurallar (ZIPâ€™teki .scp standartlarÄ±na gÃ¶re):
         // - IF / (ELSEIF|ELIF)* / (ELSE)? / ENDIF dengesi (stack)
-        // - ELSEIF/ELIF ve ELSE yalnızca açık bir IF varken geçerli
-        // - ENDIF yalnızca açık bir IF'i kapatır
-        // - [eof] son anlamlı satırda case-insensitive
+        // - ELSEIF/ELIF ve ELSE yalnÄ±zca aÃ§Ä±k bir IF varken geÃ§erli
+        // - ENDIF yalnÄ±zca aÃ§Ä±k bir IF'i kapatÄ±r
+        // - [eof] son anlamlÄ± satÄ±rda case-insensitive
         // - Opsiyonel: WHILE/ENDWHILE, FOR/ENDFOR, SWITCH/ENDSWITCH dengesi
         // en;
         // Basic rules (according to .scp standards in ZIP):
@@ -122,7 +122,7 @@ namespace SphereServerScriptAnalyser
             var results = new List<FileReport>(allFiles.Count);
 
             // regexes (Developed in Sphere language)
-            // COMNMENT LINE (satır başı ; veya //)
+            // COMNMENT LINE (satÄ±r baÅŸÄ± ; veya //)
             var commentRegex = new Regex(@"^\s*(;|//)", RegexOptions.Compiled);
 
             // DIRECTIVES (case-insensitive)
@@ -158,20 +158,20 @@ namespace SphereServerScriptAnalyser
             var endswitchRegex = new Regex(@"^\s*endswitch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 
-            // 1) Satırdaki TÜM köşeli-parantez bloklarını aday olarak yakalar (bozuk olanlar dahil)
+            // 1) SatÄ±rdaki TÃœM kÃ¶ÅŸeli-parantez bloklarÄ±nÄ± aday olarak yakalar (bozuk olanlar dahil)
             var headerCandidateRegex = new Regex(@"\[[^\]]+\]", RegexOptions.Compiled);
 
-            // 2) GEÇERLİ definition başlığı (tam kural):
-            //    - '[' hemen ardından TYPE (boşluk yok)
-            //    - TYPE ile NAME arasında TAM OLARAK 1 boşluk
+            // 2) GEÃ‡ERLÄ° definition baÅŸlÄ±ÄŸÄ± (tam kural):
+            //    - '[' hemen ardÄ±ndan TYPE (boÅŸluk yok)
+            //    - TYPE ile NAME arasÄ±nda TAM OLARAK 1 boÅŸluk
             //    - NAME: [A-Za-z0-9_]+ (tek token)
-            //    - ']' öncesinde boşluk YOK
+            //    - ']' Ã¶ncesinde boÅŸluk YOK
             var validDefRegex = new Regex(
                 @"\[(?<type>FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE) (?<name>[A-Za-z0-9_.]+)\]",
                 RegexOptions.IgnoreCase | RegexOptions.Compiled
             );
 
-            // 3) Duplicate için kullanacağımız “tam eşleşme” regex’i (valid ile aynı)
+            // 3) Duplicate iÃ§in kullanacaÄŸÄ±mÄ±z â€œtam eÅŸleÅŸmeâ€ regexâ€™i (valid ile aynÄ±)
             var defHeaderInlineRegex = validDefRegex;
 
 
@@ -197,7 +197,26 @@ namespace SphereServerScriptAnalyser
                     for (int i = 0; i < lines.Length; i++)
                     {
                         var raw = lines[i];
-                        if (string.IsNullOrWhiteSpace(raw)) continue;
+
+                        // KURAL: Definition satÄ±rÄ±, '[' karakteriyle satÄ±rÄ±n EN BAÅINDA baÅŸlamalÄ±.
+                        // EÄŸer satÄ±rÄ±n baÅŸÄ±ndaki boÅŸluklarÄ± attÄ±ÄŸÄ±mÄ±zda ilk anlamlÄ± karakter '[' ise,
+                        // ama satÄ±r '[' ile baÅŸlamÄ±yorsa -> HATA.
+                        var trimmed = raw.TrimStart();
+                        if (trimmed.StartsWith("[") && !raw.StartsWith("["))
+                        {
+                            fr.Issues.Add(new Issue
+                            {
+                                Line = i + 1,
+                                Type = "LeadingWhitespaceBeforeBracket",
+                                Message = "Definition satÄ±r baÅŸÄ±nda baÅŸlamalÄ±. '[' Ã¶ncesinde boÅŸluk veya tab olmamalÄ±."
+                            });
+                            // NOT: continue etmiyoruz; diÄŸer kontroller de Ã§alÄ±ÅŸsÄ±n
+                        }
+
+
+
+                        if (string.IsNullOrWhiteSpace(raw)) 
+                            continue;
 
                         // clear whitespace at the beginning of a line
                         var line = raw.TrimStart();
@@ -208,78 +227,78 @@ namespace SphereServerScriptAnalyser
 
                         // ---- HEADER FORMAT & DUPLICATE CHECK ----
 
-                        // 3.1) Önce satırdaki TÜM köşeli başlık adaylarını bul (bozuklar dahil)
-                        // 3.1) Önce satırdaki TÜM köşeli başlık adaylarını bul (bozuklar dahil)
+                        // 3.1) Ã–nce satÄ±rdaki TÃœM kÃ¶ÅŸeli baÅŸlÄ±k adaylarÄ±nÄ± bul (bozuklar dahil)
+                        // 3.1) Ã–nce satÄ±rdaki TÃœM kÃ¶ÅŸeli baÅŸlÄ±k adaylarÄ±nÄ± bul (bozuklar dahil)
                         var candidates = headerCandidateRegex.Matches(line);
                         foreach (Match cand in candidates)
                         {
-                            var token = cand.Value; // örn: "[FUNCTION getacc ]", "[ FUNCTION getacc]", "[FUNCTIONgetacc]"
+                            var token = cand.Value; // Ã¶rn: "[FUNCTION getacc ]", "[ FUNCTION getacc]", "[FUNCTIONgetacc]"
 
-                            // >>>>> ekle: [eof]’u tamamen görmezden gel
+                            // >>>>> ekle: [eof]â€™u tamamen gÃ¶rmezden gel
                             if (token.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
                                 continue;
 
-                            // >>>>> ekle: sadece bizim TYPE listemizle başlayan adayları incele
-                            // (köşeli parantezden sonra boşluk olsa da TYPE varsa yakalar)
+                            // >>>>> ekle: sadece bizim TYPE listemizle baÅŸlayan adaylarÄ± incele
+                            // (kÃ¶ÅŸeli parantezden sonra boÅŸluk olsa da TYPE varsa yakalar)
 
-                            // typeHead: köşeli parantez sonrası TYPE var mı? ( \b kullanmıyoruz ki "[FUNCTIONmytest]" gibi hatalı formlar da aday olsun )
+                            // typeHead: kÃ¶ÅŸeli parantez sonrasÄ± TYPE var mÄ±? ( \b kullanmÄ±yoruz ki "[FUNCTIONmytest]" gibi hatalÄ± formlar da aday olsun )
 
-                            // ESKİ:
+                            // ESKÄ°:
                             //var typeHead = Regex.Match(token, @"^\[\s*(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\b", RegexOptions.IgnoreCase);
 
-                            // YENİ ( \b yok ):
+                            // YENÄ° ( \b yok ):
                             var typeHead = Regex.Match(token, @"^\[\s*(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)", RegexOptions.IgnoreCase);
 
                             if (!typeHead.Success)
                                 continue;
 
-                            // 3.2) Geçerli mi? (tam şablon)
+                            // 3.2) GeÃ§erli mi? (tam ÅŸablon)
                             var vm = validDefRegex.Match(token);
                             if (vm.Success)
                             {
-                                // Geçerli format -> duplicate kontrolüne bırak (aşağıda 3.4’te)
+                                // GeÃ§erli format -> duplicate kontrolÃ¼ne bÄ±rak (aÅŸaÄŸÄ±da 3.4â€™te)
                                 continue;
                             }
 
-                            // 3.3) Geçersiz format -> hangi kural bozulduysa issue üret
+                            // 3.3) GeÃ§ersiz format -> hangi kural bozulduysa issue Ã¼ret
                             if (HasSpaceRightAfterOpenBracket(token))
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceAfterOpeningBracket", Message = $"'{token}' : '[' sonrası boşluk olmamalı" });
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceAfterOpeningBracket", Message = $"'{token}' : '[' sonrasÄ± boÅŸluk olmamalÄ±" });
                                 continue;
                             }
                             if (MissingSpaceBetweenTypeAndName(token))
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MissingSpaceBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında tam 1 boşluk olmalı" });
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MissingSpaceBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasÄ±nda tam 1 boÅŸluk olmalÄ±" });
                                 continue;
                             }
                             if (MultipleSpacesBetweenTypeAndName(token))
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MultipleSpacesBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında 1’den fazla boşluk var" });
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MultipleSpacesBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasÄ±nda 1â€™den fazla boÅŸluk var" });
                                 continue;
                             }
                             if (HasSpaceBeforeClosingBracket(token))
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceBeforeClosingBracket", Message = $"'{token}' : ']' öncesinde boşluk olmamalı" });
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceBeforeClosingBracket", Message = $"'{token}' : ']' Ã¶ncesinde boÅŸluk olmamalÄ±" });
                                 continue;
                             }
                             if (InvalidNameToken(token))
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionName", Message = $"'{token}' : NAME yalnızca A-Z, 0-9 veya '_' içermeli" });
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionName", Message = $"'{token}' : NAME yalnÄ±zca A-Z, 0-9 veya '_' iÃ§ermeli" });
                                 continue;
                             }
 
-                            fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionHeader", Message = $"'{token}' : Geçersiz definition biçimi" });
+                            fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionHeader", Message = $"'{token}' : GeÃ§ersiz definition biÃ§imi" });
                         }
 
 
-                        // 3.4) Şimdi yalnızca GEÇERLİ başlıklar üzerinden duplicate kontrolü yap
+                        // 3.4) Åimdi yalnÄ±zca GEÃ‡ERLÄ° baÅŸlÄ±klar Ã¼zerinden duplicate kontrolÃ¼ yap
                         var valids = defHeaderInlineRegex.Matches(line);
                         foreach (Match dm in valids)
                         {
                             var type = dm.Groups["type"].Value;
                             var name = dm.Groups["name"].Value;
 
-                            // Case-insensitive tam eşleşme anahtarı
+                            // Case-insensitive tam eÅŸleÅŸme anahtarÄ±
                             var key = $"{type.ToUpperInvariant()}|{name.ToUpperInvariant()}";
 
                             if (defIndex.TryGetValue(key, out var firstLine))
@@ -298,10 +317,10 @@ namespace SphereServerScriptAnalyser
                         }
 
 
-                        // satırın ilk kelimesini (harflerden oluşan) yakala
+                        // satÄ±rÄ±n ilk kelimesini (harflerden oluÅŸan) yakala
                         // capture the first word (of letters) of the line
                         // ex: "elif (...)" -> "elif", "ENDIF" -> "ENDIF"
-                        // ör: "elif (...)" -> "elif", "ENDIF  " -> "ENDIF"
+                        // Ã¶r: "elif (...)" -> "elif", "ENDIF  " -> "ENDIF"
                         var m = Regex.Match(line, @"^(?<kw>[A-Za-z]+)\b");
                         if (!m.Success)
                             continue;
@@ -309,11 +328,40 @@ namespace SphereServerScriptAnalyser
                         var kw = m.Groups["kw"].Value.ToLowerInvariant();
 
                         // ---- IF family ----
+                        /*
                         if (kw == "if")
                         {
                             stackIf.Push(i + 1);
                             continue;
                         }
+                        */
+                        if (kw == "if")
+                        {
+                            // â¶ 'if' kelimesinden SONRA gelen ilk karakteri kontrol et
+                            var afterKw = line.Substring(m.Length); // m.Length = 'if' + boÅŸluk(lar) olmadan kelime sÄ±nÄ±rÄ±
+                            if (afterKw.Length > 0 && !char.IsWhiteSpace(afterKw[0]))
+                            {
+                                // if( ... ) veya if< ...  gibi boÅŸluksuz kullanÄ±mlarÄ± yakala
+                                // Ã¶rn: "if(" => before '(' , "if<" => before '<'
+                                string where =
+                                    afterKw.StartsWith("(") ? "before '('"
+                                  : afterKw.StartsWith("<") ? "before '<'"
+                                  : "after 'if'";
+
+                                fr.Issues.Add(new Issue
+                                {
+                                    Line = i + 1,
+                                    Type = "IfMissingSpace",
+                                    Message = $"'if' sonrasÄ± boÅŸluk olmalÄ± ({where}). DoÄŸru kullanÄ±m: \"if (<expr>)\" veya \"if <expr>\""
+                                });
+                            }
+
+                            // mevcut mantÄ±k devam etsin (stack push)
+                            stackIf.Push(i + 1);
+                            continue;
+                        }
+
+
                         if (kw == "elseif" || kw == "elif")
                         {
                             if (stackIf.Count == 0)
@@ -359,7 +407,7 @@ namespace SphereServerScriptAnalyser
                         }
 
                         // ---- FOR family ----
-                        // Açılış: listedeki tüm varyantlar aynı stack'e push
+                        // AÃ§Ä±lÄ±ÅŸ: listedeki tÃ¼m varyantlar aynÄ± stack'e push
                         if (forOpenSet.Contains(kw))
                         {
                             stackFor.Push(i + 1);
@@ -407,16 +455,16 @@ namespace SphereServerScriptAnalyser
                     foreach (var ln in stackSwitch)
                         fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedSwitch", Message = "switch var ama endswitch yok" });
 
-                    // [eof] kontrolü — son anlamlı satır (boş/yorum değil) [eof] olmalı (case-insensitive)
+                    // [eof] kontrolÃ¼ â€” son anlamlÄ± satÄ±r (boÅŸ/yorum deÄŸil) [eof] olmalÄ± (case-insensitive)
                     bool hasEof = false;
                     for (int j = lines.Length - 1; j >= 0; j--)
                     {
                         var s = lines[j].Trim();
-                        if (s.Length == 0) continue;                 // boş satırı geç
-                        if (s.StartsWith(";") || s.StartsWith("//")) continue; // yorum satırını geç
+                        if (s.Length == 0) continue;                 // boÅŸ satÄ±rÄ± geÃ§
+                        if (s.StartsWith(";") || s.StartsWith("//")) continue; // yorum satÄ±rÄ±nÄ± geÃ§
                         if (s.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
                             hasEof = true;
-                        break; // ilk anlamlı satırı kontrol ettik
+                        break; // ilk anlamlÄ± satÄ±rÄ± kontrol ettik
                     }
                     if (!hasEof)
                     {
@@ -444,11 +492,11 @@ namespace SphereServerScriptAnalyser
             return results;
         }
 
-        // kural: '[' işaretinden hemen sonra boşluk/tabs olmamalı
+        // kural: '[' iÅŸaretinden hemen sonra boÅŸluk/tabs olmamalÄ±
         bool HasSpaceRightAfterOpenBracket(string token) => token.StartsWith("[ ") || token.StartsWith("[\t");
 
         bool MissingSpaceBetweenTypeAndName(string token) =>
-            // [FUNCTIONgetacc] gibi: TYPE’ı bulup hemen NAME geliyor mu?
+            // [FUNCTIONgetacc] gibi: TYPEâ€™Ä± bulup hemen NAME geliyor mu?
             Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)[A-Za-z0-9_.]+\]$", RegexOptions.IgnoreCase);
 
         bool MultipleSpacesBetweenTypeAndName(string token) =>
@@ -458,7 +506,7 @@ namespace SphereServerScriptAnalyser
             Regex.IsMatch(token, @"\s\]$");
 
         bool InvalidNameToken(string token) =>
-            // [TYPE   name*bad] gibi geçersiz karakter içeriyorsa
+            // [TYPE   name*bad] gibi geÃ§ersiz karakter iÃ§eriyorsa
             Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\s+([^\]\s]+)\]$", RegexOptions.IgnoreCase)
             && !Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\s+[A-Za-z0-9_.]+\]$", RegexOptions.IgnoreCase);
 
@@ -495,7 +543,7 @@ namespace SphereServerScriptAnalyser
 
             private void InitUi()
             {
-                Text = $"{Properties.Resources.Detail} – {Path.GetFileName(_report.Path)}";
+                Text = $"{Properties.Resources.Detail} â€“ {Path.GetFileName(_report.Path)}";
                 Width = 1000;
                 Height = 700;
                 StartPosition = FormStartPosition.CenterParent;
@@ -542,7 +590,8 @@ namespace SphereServerScriptAnalyser
                 lbIssues.Items.Clear();
                 foreach (var issue in _report.Issues.OrderBy(i => i.Line))
                 {
-                    lbIssues.Items.Add($"L{issue.Line} – {issue.Type}: {issue.Message}");
+                    //lbIssues.Items.Add($"L{issue.Line} â€“ {issue.Type}: {issue.Message}");
+                    lbIssues.Items.Add($"L{issue.Line} â€“ {issue.Type}");
                 }
 
                 // Automatically select and highlight the first issue if there is one
@@ -626,12 +675,12 @@ namespace SphereServerScriptAnalyser
             foreach (Control c in root.Controls)
                 ApplyResourcesRecursive(c, res);
 
-            // Menü elemanlarını da güncelle
+            // MenÃ¼ elemanlarÄ±nÄ± da gÃ¼ncelle
             if (root is Form f && f.MainMenuStrip != null)
             {
                 foreach (ToolStripItem it in f.MainMenuStrip.Items)
                     res.ApplyResources(it, it.Name);
-                // Alt menüler:
+                // Alt menÃ¼ler:
                 foreach (ToolStripMenuItem top in f.MainMenuStrip.Items)
                     foreach (ToolStripItem child in top.DropDownItems)
                         res.ApplyResources(child, child.Name);
@@ -642,24 +691,24 @@ namespace SphereServerScriptAnalyser
         {
             try
             {
-                // 1) Settings’e yaz
+                // 1) Settingsâ€™e yaz
                 Properties.Main.Default.Language = cultureName;
                 Properties.Main.Default.Save();
 
-                // 2) Kullanıcıya bilgi ver
+                // 2) KullanÄ±cÄ±ya bilgi ver
                 var result = MessageBox.Show(
-                    Properties.Resources.RestartRequired,   // "Dil değişikliğinin uygulanması için uygulama yeniden başlatılacak. Devam edilsin mi?"
+                    Properties.Resources.RestartRequired,   // "Dil deÄŸiÅŸikliÄŸinin uygulanmasÄ± iÃ§in uygulama yeniden baÅŸlatÄ±lacak. Devam edilsin mi?"
                     Properties.Resources.Info,              // "Bilgi"
                     MessageBoxButtons.OKCancel,
                     MessageBoxIcon.Information
                 );
 
-                // 3) Onay verirse yeniden başlat
+                // 3) Onay verirse yeniden baÅŸlat
                 if (result == DialogResult.OK)
                 {
                     Application.Restart();
                 }
-                // else hiçbir şey yapma (iptal ederse)
+                // else hiÃ§bir ÅŸey yapma (iptal ederse)
 
             }
             catch (Exception ex)

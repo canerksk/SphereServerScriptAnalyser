@@ -26,6 +26,7 @@ namespace SphereServerScriptAnalyser
 
         private void InitializeComponent()
         {
+            components = new System.ComponentModel.Container();
             txtFolder = new TextBox();
             folderBrowserDialog1 = new FolderBrowserDialog();
             btnSelectFolder = new Button();
@@ -39,6 +40,7 @@ namespace SphereServerScriptAnalyser
             englishToolStripMenuItem = new ToolStripMenuItem();
             turkishToolStripMenuItem = new ToolStripMenuItem();
             frCAToolStripMenuItem = new ToolStripMenuItem();
+            toolTip1 = new ToolTip(components);
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -88,7 +90,7 @@ namespace SphereServerScriptAnalyser
             lblStatus.Name = "lblStatus";
             lblStatus.Size = new Size(622, 17);
             lblStatus.TabIndex = 0;
-            lblStatus.Text = Properties.Resources.Ready;
+            lblStatus.Text = "Ready";
             // 
             // btnScanAgain
             // 
@@ -113,7 +115,7 @@ namespace SphereServerScriptAnalyser
             // 
             languageToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { englishToolStripMenuItem, turkishToolStripMenuItem, frCAToolStripMenuItem });
             languageToolStripMenuItem.Name = "languageToolStripMenuItem";
-            languageToolStripMenuItem.Size = new Size(122, 20);
+            languageToolStripMenuItem.Size = new Size(71, 20);
             languageToolStripMenuItem.Text = Properties.Resources.Language;
             // 
             // englishToolStripMenuItem
@@ -148,8 +150,11 @@ namespace SphereServerScriptAnalyser
             Controls.Add(btnSelectFolder);
             Controls.Add(txtFolder);
             Controls.Add(menuStrip1);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
             MainMenuStrip = menuStrip1;
+            MaximizeBox = false;
             Name = "Form1";
+            StartPosition = FormStartPosition.CenterScreen;
             Text = "Sphere Server Script Analyser";
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
@@ -162,5 +167,6 @@ namespace SphereServerScriptAnalyser
         private ToolStripMenuItem englishToolStripMenuItem;
         private ToolStripMenuItem turkishToolStripMenuItem;
         private ToolStripMenuItem frCAToolStripMenuItem;
+        private ToolTip toolTip1;
     }
 }
