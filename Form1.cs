@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
+
 namespace SphereServerScriptAnalyser
 {
     public partial class Form1 : Form
@@ -847,7 +848,11 @@ namespace SphereServerScriptAnalyser
                     suffix = $" ({name})";
                 }
 
-                btnOpenFile.Text = Properties.Resources.OpenTheFile + suffix;
+                if (btnOpenFile != null && !btnOpenFile.IsDisposed)
+                {
+                    btnOpenFile.Text = (Properties.Resources.OpenTheFile ?? "Open the file") + suffix;
+                }
+
             }
         }
 
@@ -948,9 +953,10 @@ namespace SphereServerScriptAnalyser
                 IssueViewerForm.SaveEditorPreference(ofd.FileName);
         }
 
-
-
-
-
+        private void resetDefaultEditorToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            Properties.Main.Default.DefaultEditorPath = string.Empty;
+            Properties.Main.Default.Save();
+        }
     }
 }

@@ -40,9 +40,10 @@ namespace SphereServerScriptAnalyser
             englishToolStripMenuItem = new ToolStripMenuItem();
             turkishToolStripMenuItem = new ToolStripMenuItem();
             frCAToolStripMenuItem = new ToolStripMenuItem();
-            toolTip1 = new ToolTip(components);
             settingsToolStripMenuItem = new ToolStripMenuItem();
             setDefaultEditorToolStripMenuItem = new ToolStripMenuItem();
+            toolTip1 = new ToolTip(components);
+            resetDefaultEditorToolStripMenuItem = new ToolStripMenuItem();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -143,7 +144,7 @@ namespace SphereServerScriptAnalyser
             // 
             // settingsToolStripMenuItem
             // 
-            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { setDefaultEditorToolStripMenuItem });
+            settingsToolStripMenuItem.DropDownItems.AddRange(new ToolStripItem[] { setDefaultEditorToolStripMenuItem, resetDefaultEditorToolStripMenuItem });
             settingsToolStripMenuItem.Name = "settingsToolStripMenuItem";
             settingsToolStripMenuItem.Size = new Size(61, 20);
             settingsToolStripMenuItem.Text = Properties.Resources.Settings;
@@ -154,6 +155,13 @@ namespace SphereServerScriptAnalyser
             setDefaultEditorToolStripMenuItem.Size = new Size(180, 22);
             setDefaultEditorToolStripMenuItem.Text = Properties.Resources.SetDefaultEditor;
             setDefaultEditorToolStripMenuItem.Click += setDefaultEditorToolStripMenuItem_Click;
+            // 
+            // resetDefaultEditorToolStripMenuItem
+            // 
+            resetDefaultEditorToolStripMenuItem.Name = "resetDefaultEditorToolStripMenuItem";
+            resetDefaultEditorToolStripMenuItem.Size = new Size(180, 22);
+            resetDefaultEditorToolStripMenuItem.Text = "Reset Default Editor";
+            resetDefaultEditorToolStripMenuItem.Click += resetDefaultEditorToolStripMenuItem_Click;
             // 
             // Form1
             // 
@@ -186,5 +194,6 @@ namespace SphereServerScriptAnalyser
         private ToolTip toolTip1;
         private ToolStripMenuItem settingsToolStripMenuItem;
         private ToolStripMenuItem setDefaultEditorToolStripMenuItem;
+        private ToolStripMenuItem resetDefaultEditorToolStripMenuItem;
     }
 }
