@@ -61,6 +61,24 @@ namespace SphereServerScriptAnalyser.Properties {
         }
         
         /// <summary>
+        ///   The [EOF] line was added to the end of the file. benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string AddEOFLineFile {
+            get {
+                return ResourceManager.GetString("AddEOFLineFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   All benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string All {
+            get {
+                return ResourceManager.GetString("All", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Analysis completed. benzeri yerelleştirilmiş bir dize arar.
         /// </summary>
         internal static string AnalysisCompleted {
@@ -75,6 +93,15 @@ namespace SphereServerScriptAnalyser.Properties {
         internal static string AnErrorOccurred {
             get {
                 return ResourceManager.GetString("AnErrorOccurred", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Applications benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string Applications {
+            get {
+                return ResourceManager.GetString("Applications", resourceCulture);
             }
         }
         
@@ -129,6 +156,15 @@ namespace SphereServerScriptAnalyser.Properties {
         internal static string FilesWereExamined {
             get {
                 return ResourceManager.GetString("FilesWereExamined", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   File update failed: benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string FileUpdateFailed {
+            get {
+                return ResourceManager.GetString("FileUpdateFailed", resourceCulture);
             }
         }
         
@@ -241,6 +277,15 @@ namespace SphereServerScriptAnalyser.Properties {
         }
         
         /// <summary>
+        ///   Select the editor app benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string SelectTheEditorApp {
+            get {
+                return ResourceManager.GetString("SelectTheEditorApp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Select the Sphere scripts folder benzeri yerelleştirilmiş bir dize arar.
         /// </summary>
         internal static string SelectTheSphereScriptsFolder {
@@ -273,6 +318,15 @@ namespace SphereServerScriptAnalyser.Properties {
         internal static string StringAValidFolder {
             get {
                 return ResourceManager.GetString("StringAValidFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Success benzeri yerelleştirilmiş bir dize arar.
+        /// </summary>
+        internal static string Success {
+            get {
+                return ResourceManager.GetString("Success", resourceCulture);
             }
         }
         

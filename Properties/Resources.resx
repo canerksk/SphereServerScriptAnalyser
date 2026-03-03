@@ -198,4 +198,22 @@
   <data name="SetDefaultEditor" xml:space="preserve">
     <value>Set Default Editor</value>
   </data>
+  <data name="FileUpdateFailed" xml:space="preserve">
+    <value>File update failed:</value>
+  </data>
+  <data name="Success" xml:space="preserve">
+    <value>Success</value>
+  </data>
+  <data name="SelectTheEditorApp" xml:space="preserve">
+    <value>Select the editor app</value>
+  </data>
+  <data name="Applications" xml:space="preserve">
+    <value>Applications</value>
+  </data>
+  <data name="All" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="AddEOFLineFile" xml:space="preserve">
+    <value>The [EOF] line was added to the end of the file.</value>
+  </data>
 </root>

@@ -18,19 +18,50 @@ namespace SphereServerScriptAnalyser
     {
         private readonly Dictionary<string, FileReport> _reportsByPath = new(StringComparer.OrdinalIgnoreCase);
 
+        public enum RuleType
+        {
+            CheckEOF,
+            CheckIfElse,
+            CheckWhile,
+            CheckFor,
+            CheckSwitch,
+            CheckDefHeaderFormat,
+            CheckDuplicateDef,
+            CheckLeadingWhitespace,
+            CheckSpaceAfterBracket,
+            CheckMissingSpace,
+            CheckMultipleSpaces,
+            CheckSpaceBeforeCloseBracket,
+            CheckInvalidNameToken,
+            CheckIfMissingSpace
+        }
+
+        private readonly Dictionary<RuleType, string> RuleLabels = new Dictionary<RuleType, string>
+        {
+            { RuleType.CheckEOF, "Check EOF" },
+            { RuleType.CheckIfElse, "Check IF/ELSE/ENDIF" },
+            { RuleType.CheckWhile, "Check WHILE/ENDWHILE" },
+            { RuleType.CheckFor, "Check FOR/ENDFOR" },
+            { RuleType.CheckSwitch, "Check SWITCH/ENDSWITCH" },
+            { RuleType.CheckDefHeaderFormat, "Check Definition Header Format" },
+            { RuleType.CheckDuplicateDef, "Check Duplicate Definition" },
+            { RuleType.CheckLeadingWhitespace, "Check Leading whitespace" },
+            { RuleType.CheckSpaceAfterBracket, "Check Space After Bracket" },
+            { RuleType.CheckMissingSpace, "Check Missing Space Between TYPE and NAME" },
+            { RuleType.CheckMultipleSpaces, "Check Multiple Spaces Between TYPE and NAME" },
+            { RuleType.CheckSpaceBeforeCloseBracket, "Check Space Before Closing Bracket" },
+            { RuleType.CheckInvalidNameToken, "Check Invalid Name Token" },
+            { RuleType.CheckIfMissingSpace, "Check IF Statement Missing Space" }
+        };
 
 
         public Form1()
         {
             InitializeComponent();
 
-            /*
-            lvProblems.Columns.AddRange(new[] { 
-                chFile, 
-                chIssueCount
-            });
-            */
-
+            clbRules.Items.AddRange(RuleLabels.Values.ToArray());
+            for (int i = 0; i < clbRules.Items.Count; i++)
+                clbRules.SetItemChecked(i, true);
         }
 
         private async void btnSelectFolder_Click(object sender, EventArgs e)
@@ -60,10 +91,18 @@ namespace SphereServerScriptAnalyser
                 dlg.ShowDialog(this);
             }
         }
-
+        private List<RuleType> GetSelectedRules()
+        {
+            var selected = new List<RuleType>();
+            foreach (string label in clbRules.CheckedItems)
+            {
+                var ruleType = RuleLabels.FirstOrDefault(x => x.Value == label).Key;
+                selected.Add(ruleType);
+            }
+            return selected;
+        }
 
         // ------------------- Analys -------------------
-
         private async Task StartScanAsync(string folder)
         {
             if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
@@ -78,7 +117,9 @@ namespace SphereServerScriptAnalyser
 
             try
             {
-                var result = await Task.Run(() => RunScan(folder));
+                var selectedRules = GetSelectedRules();
+                var result = await Task.Run(() => RunScan(folder, selectedRules));
+
                 var problemFiles = result.Where(r => r.Issues.Count > 0).OrderBy(r => r.Path).ToList();
 
                 foreach (var fr in problemFiles)
@@ -101,83 +142,49 @@ namespace SphereServerScriptAnalyser
             }
         }
 
-        // tr;
-        // Temel kurallar (ZIP’teki .scp standartlarına göre):
-        // - IF / (ELSEIF|ELIF)* / (ELSE)? / ENDIF dengesi (stack)
-        // - ELSEIF/ELIF ve ELSE yalnızca açık bir IF varken geçerli
-        // - ENDIF yalnızca açık bir IF'i kapatır
-        // - [eof] son anlamlı satırda case-insensitive
-        // - Opsiyonel: WHILE/ENDWHILE, FOR/ENDFOR, SWITCH/ENDSWITCH dengesi
-        // en;
-        // Basic rules (according to .scp standards in ZIP):
-        // - IF / (ELSEIF|ELIF)* / (ELSE)? / ENDIF balance (stack)
-        // - ELSEIF/ELIF and ELSE are only valid when there is an open IF
-        // - ENDIF only closes an open IF
-        // - [eof] on the last significant line is case-insensitive
-        // - Optional: WHILE/ENDWHILE, FOR/ENDFOR, SWITCH/ENDSWITCH balance
-
-        private List<FileReport> RunScan(string root)
+        private List<FileReport> RunScan(string root, List<RuleType> activeRules)
         {
-            var exts = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { ".scp" };
-
-            var allFiles = Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories).Where(f => exts.Contains(Path.GetExtension(f))).ToList();
+            var exts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".scp" };
+            var allFiles = Directory.EnumerateFiles(root, "*.*", SearchOption.AllDirectories)
+                .Where(f => exts.Contains(Path.GetExtension(f))).ToList();
 
             var results = new List<FileReport>(allFiles.Count);
 
             // regexes (Developed in Sphere language)
-            // COMNMENT LINE (satır başı ; veya //)
             var commentRegex = new Regex(@"^\s*(;|//)", RegexOptions.Compiled);
-
-            // DIRECTIVES (case-insensitive)
             var ifRegex = new Regex(@"^\s*if\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var elseifRegex = new Regex(@"^\s*(elseif|elif)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var elseRegex = new Regex(@"^\s*else\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var endifRegex = new Regex(@"^\s*endif\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-            // Optional pairs (available in some scripts)
             var whileRegex = new Regex(@"^\s*while\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var endwhileRegex = new Regex(@"^\s*endwhile\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
             var forRegex = new Regex(@"^\s*for\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var endforRegex = new Regex(@"^\s*endfor\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-            // FOR family: They all end with ENDFOR
+
             var forOpenSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "for",
-                "forcharlayer",
-                "forcharmemorytype",
-                "forchars",
+                "for", 
+                "forcharlayer", 
+                "forcharmemorytype", 
+                "forchars", 
                 "forclients",
-                "forplayers",
-                "forcont",
-                "forcontid",
-                "forconttype",
+                "forplayers", 
+                "forcont", 
+                "forcontid", 
+                "forconttype", 
                 "forinstances",
-                "foritems",
+                "foritems", 
                 "forobjs"
             };
 
             var switchRegex = new Regex(@"^\s*switch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             var endswitchRegex = new Regex(@"^\s*endswitch\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-
-
-            // 1) Satırdaki TÜM köşeli-parantez bloklarını aday olarak yakalar (bozuk olanlar dahil)
             var headerCandidateRegex = new Regex(@"\[[^\]]+\]", RegexOptions.Compiled);
-
-            // 2) GEÇERLİ definition başlığı (tam kural):
-            //    - '[' hemen ardından TYPE (boşluk yok)
-            //    - TYPE ile NAME arasında TAM OLARAK 1 boşluk
-            //    - NAME: [A-Za-z0-9_]+ (tek token)
-            //    - ']' öncesinde boşluk YOK
             var validDefRegex = new Regex(
                 @"\[(?<type>FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE) (?<name>[A-Za-z0-9_.]+)\]",
                 RegexOptions.IgnoreCase | RegexOptions.Compiled
             );
-
-            // 3) Duplicate için kullanacağımız “tam eşleşme” regex’i (valid ile aynı)
             var defHeaderInlineRegex = validDefRegex;
-
 
             foreach (var path in allFiles)
             {
@@ -191,293 +198,305 @@ namespace SphereServerScriptAnalyser
                     fr.Lines = lines.Length;
 
                     var defIndex = new Dictionary<string, int>();
-
-                    //var defIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
                     var stackIf = new Stack<int>();
                     var stackWhile = new Stack<int>();
                     var stackFor = new Stack<int>();
                     var stackSwitch = new Stack<int>();
+                    bool inCommentBlock = false; 
+
 
                     for (int i = 0; i < lines.Length; i++)
                     {
                         var raw = lines[i];
-
-                        // KURAL: Definition satırı, '[' karakteriyle satırın EN BAŞINDA başlamalı.
-                        // Eğer satırın başındaki boşlukları attığımızda ilk anlamlı karakter '[' ise,
-                        // ama satır '[' ile başlamıyorsa -> HATA.
                         var trimmed = raw.TrimStart();
-                        if (trimmed.StartsWith("[") && !raw.StartsWith("["))
+
+                        // [COMMENT] bloğu başlangıcı
+                        if (trimmed.StartsWith("[COMMENT", StringComparison.OrdinalIgnoreCase))
                         {
-                            fr.Issues.Add(new Issue
-                            {
-                                Line = i + 1,
-                                Type = "LeadingWhitespaceBeforeBracket",
-                                Message = "Definition satır başında başlamalı. '[' öncesinde boşluk veya tab olmamalı."
-                            });
-                            // NOT: continue etmiyoruz; diğer kontroller de çalışsın
+                            inCommentBlock = true;
+                            continue;
                         }
-
-
-
-                        if (string.IsNullOrWhiteSpace(raw))
+                        // Comment bloğu içindeysek ve [ ile başlayan başka bir satır görürsek, comment bloğu biter
+                        if (inCommentBlock && trimmed.StartsWith("["))
+                        {
+                            inCommentBlock = false;
+                            // Bu satırı normal işlemeye devam et, aşağıdaki kodlar çalışacak
+                        }
+                        // Hala comment bloğu içindeysek, bu satırı atla
+                        if (inCommentBlock)
                             continue;
 
-                        // clear whitespace at the beginning of a line
-                        var line = raw.TrimStart();
-
-                        // line-in comments (only at the beginning ; or //)
-                        if (line.StartsWith(";") || line.StartsWith("//"))
-                            continue;
-
-                        // ---- HEADER FORMAT & DUPLICATE CHECK ----
-
-                        // 3.1) Önce satırdaki TÜM köşeli başlık adaylarını bul (bozuklar dahil)
-                        // 3.1) Önce satırdaki TÜM köşeli başlık adaylarını bul (bozuklar dahil)
-                        var candidates = headerCandidateRegex.Matches(line);
-                        foreach (Match cand in candidates)
+                        // Leading whitespace kontrolü
+                        if (activeRules.Contains(RuleType.CheckLeadingWhitespace))
                         {
-                            var token = cand.Value; // örn: "[FUNCTION getacc ]", "[ FUNCTION getacc]", "[FUNCTIONgetacc]"
-
-                            // >>>>> ekle: [eof]’u tamamen görmezden gel
-                            if (token.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
-                                continue;
-
-                            // >>>>> ekle: sadece bizim TYPE listemizle başlayan adayları incele
-                            // (köşeli parantezden sonra boşluk olsa da TYPE varsa yakalar)
-
-                            // typeHead: köşeli parantez sonrası TYPE var mı? ( \b kullanmıyoruz ki "[FUNCTIONmytest]" gibi hatalı formlar da aday olsun )
-
-                            // ESKİ:
-                            //var typeHead = Regex.Match(token, @"^\[\s*(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\b", RegexOptions.IgnoreCase);
-
-                            // YENİ ( \b yok ):
-                            var typeHead = Regex.Match(token, @"^\[\s*(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)", RegexOptions.IgnoreCase);
-
-                            if (!typeHead.Success)
-                                continue;
-
-                            // 3.2) Geçerli mi? (tam şablon)
-                            var vm = validDefRegex.Match(token);
-                            if (vm.Success)
-                            {
-                                // Geçerli format -> duplicate kontrolüne bırak (aşağıda 3.4’te)
-                                continue;
-                            }
-
-                            // 3.3) Geçersiz format -> hangi kural bozulduysa issue üret
-                            if (HasSpaceRightAfterOpenBracket(token))
-                            {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceAfterOpeningBracket", Message = $"'{token}' : '[' sonrası boşluk olmamalı" });
-                                continue;
-                            }
-                            if (MissingSpaceBetweenTypeAndName(token))
-                            {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MissingSpaceBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında tam 1 boşluk olmalı" });
-                                continue;
-                            }
-                            if (MultipleSpacesBetweenTypeAndName(token))
-                            {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "MultipleSpacesBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında 1’den fazla boşluk var" });
-                                continue;
-                            }
-                            if (HasSpaceBeforeClosingBracket(token))
-                            {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceBeforeClosingBracket", Message = $"'{token}' : ']' öncesinde boşluk olmamalı" });
-                                continue;
-                            }
-                            if (InvalidNameToken(token))
-                            {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionName", Message = $"'{token}' : NAME yalnızca A-Z, 0-9 veya '_' içermeli" });
-                                continue;
-                            }
-
-                            fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionHeader", Message = $"'{token}' : Geçersiz definition biçimi" });
-                        }
-
-
-                        // 3.4) Şimdi yalnızca GEÇERLİ başlıklar üzerinden duplicate kontrolü yap
-                        var valids = defHeaderInlineRegex.Matches(line);
-                        foreach (Match dm in valids)
-                        {
-                            var type = dm.Groups["type"].Value;
-                            var name = dm.Groups["name"].Value;
-
-                            // Case-insensitive tam eşleşme anahtarı
-                            var key = $"{type.ToUpperInvariant()}|{name.ToUpperInvariant()}";
-
-                            if (defIndex.TryGetValue(key, out var firstLine))
+                            if (trimmed.StartsWith("[") && !raw.StartsWith("["))
                             {
                                 fr.Issues.Add(new Issue
                                 {
                                     Line = i + 1,
-                                    Type = "DuplicateDefinition",
-                                    Message = $"Duplicate [{type} {name}] (first at line {firstLine})"
+                                    Type = "LeadingWhitespaceBeforeBracket",
+                                    Message = "Definition satır başında başlamalı. '[' öncesinde boşluk veya tab olmamalı."
                                 });
-                            }
-                            else
-                            {
-                                defIndex[key] = i + 1;
                             }
                         }
 
+                        if (string.IsNullOrWhiteSpace(raw))
+                            continue;
 
-                        // satırın ilk kelimesini (harflerden oluşan) yakala
-                        // capture the first word (of letters) of the line
-                        // ex: "elif (...)" -> "elif", "ENDIF" -> "ENDIF"
-                        // ör: "elif (...)" -> "elif", "ENDIF  " -> "ENDIF"
+                        var line = raw.TrimStart();
+
+                        if (line.StartsWith(";") || line.StartsWith("//"))
+                            continue;
+
+                        // Definition header format
+                        if (activeRules.Contains(RuleType.CheckDefHeaderFormat))
+                        {
+                            var candidates = headerCandidateRegex.Matches(line);
+                            foreach (Match cand in candidates)
+                            {
+                                var token = cand.Value;
+                                if (token.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
+                                    continue;
+
+                                var typeHead = Regex.Match(token, @"^\[\s*(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)", RegexOptions.IgnoreCase);
+                                if (!typeHead.Success)
+                                    continue;
+
+                                var vm = validDefRegex.Match(token);
+                                if (vm.Success)
+                                    continue;
+
+                                // Space after bracket
+                                if (activeRules.Contains(RuleType.CheckSpaceAfterBracket) && HasSpaceRightAfterOpenBracket(token))
+                                {
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceAfterOpeningBracket", Message = $"'{token}' : '[' sonrası boşluk olmamalı" });
+                                    continue;
+                                }
+
+                                // Missing space
+                                if (activeRules.Contains(RuleType.CheckMissingSpace) && MissingSpaceBetweenTypeAndName(token))
+                                {
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "MissingSpaceBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında tam 1 boşluk olmalı" });
+                                    continue;
+                                }
+
+                                // Multiple spaces
+                                if (activeRules.Contains(RuleType.CheckMultipleSpaces) && MultipleSpacesBetweenTypeAndName(token))
+                                {
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "MultipleSpacesBetweenTypeAndName", Message = $"'{token}' : TYPE ile NAME arasında 1'den fazla boşluk var" });
+                                    continue;
+                                }
+
+                                // Space before closing bracket
+                                if (activeRules.Contains(RuleType.CheckSpaceBeforeCloseBracket) && HasSpaceBeforeClosingBracket(token))
+                                {
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "SpaceBeforeClosingBracket", Message = $"'{token}' : ']' öncesinde boşluk olmamalı" });
+                                    continue;
+                                }
+
+                                // Invalid name token
+                                if (activeRules.Contains(RuleType.CheckInvalidNameToken) && InvalidNameToken(token))
+                                {
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionName", Message = $"'{token}' : NAME yalnızca A-Z, 0-9 veya '_' içermeli" });
+                                    continue;
+                                }
+
+                                fr.Issues.Add(new Issue { Line = i + 1, Type = "InvalidDefinitionHeader", Message = $"'{token}' : Geçersiz definition biçimi" });
+                            }
+                        }
+
+                        // Duplicate definition
+                        if (activeRules.Contains(RuleType.CheckDuplicateDef))
+                        {
+                            var valids = defHeaderInlineRegex.Matches(line);
+                            foreach (Match dm in valids)
+                            {
+                                var type = dm.Groups["type"].Value;
+                                var name = dm.Groups["name"].Value;
+                                var key = $"{type.ToUpperInvariant()}|{name.ToUpperInvariant()}";
+
+                                if (defIndex.TryGetValue(key, out var firstLine))
+                                {
+                                    fr.Issues.Add(new Issue
+                                    {
+                                        Line = i + 1,
+                                        Type = "DuplicateDefinition",
+                                        Message = $"Duplicate [{type} {name}] (first at line {firstLine})"
+                                    });
+                                }
+                                else
+                                {
+                                    defIndex[key] = i + 1;
+                                }
+                            }
+                        }
+
                         var m = Regex.Match(line, @"^(?<kw>[A-Za-z]+)\b");
                         if (!m.Success)
                             continue;
 
                         var kw = m.Groups["kw"].Value.ToLowerInvariant();
 
-                        // ---- IF family ----
-                        /*
-                        if (kw == "if")
+                        // IF/ELSE/ENDIF
+                        if (activeRules.Contains(RuleType.CheckIfElse))
                         {
-                            stackIf.Push(i + 1);
-                            continue;
-                        }
-                        */
-                        if (kw == "if")
-                        {
-                            // ❶ 'if' kelimesinden SONRA gelen ilk karakteri kontrol et
-                            var afterKw = line.Substring(m.Length); // m.Length = 'if' + boşluk(lar) olmadan kelime sınırı
-                            if (afterKw.Length > 0 && !char.IsWhiteSpace(afterKw[0]))
+                            if (kw == "if")
                             {
-                                // if( ... ) veya if< ...  gibi boşluksuz kullanımları yakala
-                                // örn: "if(" => before '(' , "if<" => before '<'
-                                string where =
-                                    afterKw.StartsWith("(") ? "before '('"
-                                  : afterKw.StartsWith("<") ? "before '<'"
-                                  : "after 'if'";
-
-                                fr.Issues.Add(new Issue
+                                // Gap control after IF
+                                if (activeRules.Contains(RuleType.CheckIfMissingSpace))
                                 {
-                                    Line = i + 1,
-                                    Type = "IfMissingSpace",
-                                    Message = $"'if' sonrası boşluk olmalı ({where}). Doğru kullanım: \"if (<expr>)\" veya \"if <expr>\""
-                                });
+                                    var afterKw = line.Substring(m.Length);
+                                    if (afterKw.Length > 0 && !char.IsWhiteSpace(afterKw[0]))
+                                    {
+                                        string where = afterKw.StartsWith("(") ? "before '('"
+                                          : afterKw.StartsWith("<") ? "before '<'"
+                                          : "after 'if'";
+
+                                        fr.Issues.Add(new Issue
+                                        {
+                                            Line = i + 1,
+                                            Type = "IfMissingSpace",
+                                            Message = $"'if' sonrası boşluk olmalı ({where}). Doğru kullanım: \"if (<expr>)\" veya \"if <expr>\""
+                                        });
+                                    }
+                                }
+
+                                stackIf.Push(i + 1);
+                                continue;
                             }
 
-                            // mevcut mantık devam etsin (stack push)
-                            stackIf.Push(i + 1);
-                            continue;
-                        }
-
-
-                        if (kw == "elseif" || kw == "elif")
-                        {
-                            if (stackIf.Count == 0)
+                            if (kw == "elseif" || kw == "elif")
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "ElseIfWithoutIf", Message = "elseif/elif without matching if" });
+                                if (stackIf.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "ElseIfWithoutIf", Message = "elseif/elif without matching if" });
+                                continue;
                             }
-                            continue; // stackIf immutable
-                        }
-                        if (kw == "else")
-                        {
-                            if (stackIf.Count == 0)
+
+                            if (kw == "else")
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "ElseWithoutIf", Message = "else without matching if" });
+                                if (stackIf.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "ElseWithoutIf", Message = "else without matching if" });
+                                continue;
                             }
-                            continue; // stackIf immutable
-                        }
-                        if (kw == "endif")
-                        {
-                            if (stackIf.Count == 0)
+
+                            if (kw == "endif")
                             {
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndIf", Message = "endif without matching if" });
+                                if (stackIf.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndIf", Message = "endif without matching if" });
+                                else
+                                    stackIf.Pop();
+                                continue;
                             }
-                            else
+                        }
+
+                        // WHILE/ENDWHILE
+                        if (activeRules.Contains(RuleType.CheckWhile))
+                        {
+                            if (kw == "while")
                             {
-                                stackIf.Pop();
+                                stackWhile.Push(i + 1);
+                                continue;
                             }
-                            continue;
+
+                            if (kw == "endwhile")
+                            {
+                                if (stackWhile.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndWhile", Message = "endwhile without matching while" });
+                                else
+                                    stackWhile.Pop();
+                                continue;
+                            }
                         }
 
-                        // ---- (optional) other pairs ----
-                        if (kw == "while")
+                        // FOR/ENDFOR
+                        if (activeRules.Contains(RuleType.CheckFor))
                         {
-                            stackWhile.Push(i + 1); continue;
+                            if (forOpenSet.Contains(kw))
+                            {
+                                stackFor.Push(i + 1);
+                                continue;
+                            }
+
+                            if (kw == "endfor")
+                            {
+                                if (stackFor.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndFor", Message = "endfor without matching for*" });
+                                else
+                                    stackFor.Pop();
+                                continue;
+                            }
                         }
 
-                        if (kw == "endwhile")
+                        // SWITCH/ENDSWITCH
+                        if (activeRules.Contains(RuleType.CheckSwitch))
                         {
-                            if (stackWhile.Count == 0)
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndWhile", Message = "endwhile without matching while" });
-                            else
-                                stackWhile.Pop();
-                            continue;
-                        }
+                            if (kw == "switch")
+                            {
+                                stackSwitch.Push(i + 1);
+                                continue;
+                            }
 
-                        // ---- FOR family ----
-                        // Açılış: listedeki tüm varyantlar aynı stack'e push
-                        if (forOpenSet.Contains(kw))
-                        {
-                            stackFor.Push(i + 1);
-                            continue;
+                            if (kw == "endswitch")
+                            {
+                                if (stackSwitch.Count == 0)
+                                    fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndSwitch", Message = "endswitch without matching switch" });
+                                else
+                                    stackSwitch.Pop();
+                                continue;
+                            }
                         }
-
-                        // Closed: only ENDFOR
-                        if (kw == "endfor")
-                        {
-                            if (stackFor.Count == 0)
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndFor", Message = "endfor without matching for*" });
-                            else
-                                stackFor.Pop();
-                            continue;
-                        }
-
-                        if (kw == "switch")
-                        {
-                            stackSwitch.Push(i + 1);
-                            continue;
-                        }
-
-                        if (kw == "endswitch")
-                        {
-                            if (stackSwitch.Count == 0)
-                                fr.Issues.Add(new Issue { Line = i + 1, Type = "UnmatchedEndSwitch", Message = "endswitch without matching switch" });
-                            else
-                                stackSwitch.Pop();
-                            continue;
-                        }
-
-                        // other situations: no-op
                     }
 
-                    // unclosed blocks
-                    foreach (var ln in stackIf)
-                        fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedIf", Message = "if var ama endif yok" });
-
-                    foreach (var ln in stackWhile)
-                        fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedWhile", Message = "While var ama endwhile yok" });
-
-                    foreach (var ln in stackFor)
-                        fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedFor", Message = "for* var ama endfor yok" });
-
-                    foreach (var ln in stackSwitch)
-                        fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedSwitch", Message = "switch var ama endswitch yok" });
-
-                    // [eof] kontrolü — son anlamlı satır (boş/yorum değil) [eof] olmalı (case-insensitive)
-                    bool hasEof = false;
-                    for (int j = lines.Length - 1; j >= 0; j--)
+                    // Unclosed blocks (IF/ELSE/ENDIF)
+                    if (activeRules.Contains(RuleType.CheckIfElse))
                     {
-                        var s = lines[j].Trim();
-                        if (s.Length == 0) continue;                 // boş satırı geç
-                        if (s.StartsWith(";") || s.StartsWith("//")) continue; // yorum satırını geç
-                        if (s.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
-                            hasEof = true;
-                        break; // ilk anlamlı satırı kontrol ettik
+                        foreach (var ln in stackIf)
+                            fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedIf", Message = "if var ama endif yok" });
                     }
-                    if (!hasEof)
+
+                    // Unclosed blocks (WHILE)
+                    if (activeRules.Contains(RuleType.CheckWhile))
                     {
-                        fr.Issues.Add(new Issue
+                        foreach (var ln in stackWhile)
+                            fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedWhile", Message = "While var ama endwhile yok" });
+                    }
+
+                    // Unclosed blocks (FOR)
+                    if (activeRules.Contains(RuleType.CheckFor))
+                    {
+                        foreach (var ln in stackFor)
+                            fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedFor", Message = "for* var ama endfor yok" });
+                    }
+
+                    // Unclosed blocks (SWITCH)
+                    if (activeRules.Contains(RuleType.CheckSwitch))
+                    {
+                        foreach (var ln in stackSwitch)
+                            fr.Issues.Add(new Issue { Line = ln, Type = "UnclosedSwitch", Message = "switch var ama endswitch yok" });
+                    }
+
+                    // EOF check
+                    if (activeRules.Contains(RuleType.CheckEOF))
+                    {
+                        bool hasEof = false;
+                        for (int j = lines.Length - 1; j >= 0; j--)
                         {
-                            Line = lines.Length,
-                            Type = "NOEOF",
-                            Message = $"{Properties.Resources.ThereIsNoEofAtTheEndOfTheFile}" // [eof]/[EOF]/[Eof] hepsi kabul
-                        });
+                            var s = lines[j].Trim();
+                            if (s.Length == 0) continue;
+                            if (s.StartsWith(";") || s.StartsWith("//")) continue;
+                            if (s.Equals("[eof]", StringComparison.OrdinalIgnoreCase))
+                                hasEof = true;
+                            break;
+                        }
+                        if (!hasEof)
+                        {
+                            fr.Issues.Add(new Issue
+                            {
+                                Line = lines.Length,
+                                Type = "NOEOF",
+                                Message = $"{Properties.Resources.ThereIsNoEofAtTheEndOfTheFile}"
+                            });
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -496,11 +515,9 @@ namespace SphereServerScriptAnalyser
             return results;
         }
 
-        // kural: '[' işaretinden hemen sonra boşluk/tabs olmamalı
         bool HasSpaceRightAfterOpenBracket(string token) => token.StartsWith("[ ") || token.StartsWith("[\t");
 
         bool MissingSpaceBetweenTypeAndName(string token) =>
-            // [FUNCTIONgetacc] gibi: TYPE’ı bulup hemen NAME geliyor mu?
             Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)[A-Za-z0-9_.]+\]$", RegexOptions.IgnoreCase);
 
         bool MultipleSpacesBetweenTypeAndName(string token) =>
@@ -510,7 +527,6 @@ namespace SphereServerScriptAnalyser
             Regex.IsMatch(token, @"\s\]$");
 
         bool InvalidNameToken(string token) =>
-            // [TYPE   name*bad] gibi geçersiz karakter içeriyorsa
             Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\s+([^\]\s]+)\]$", RegexOptions.IgnoreCase)
             && !Regex.IsMatch(token, @"^\[(FUNCTION|ITEMDEF|CHARDEF|DEFNAME|EVENTS|AREADEF|SPAWN|SPEECH|TEMPLATE)\s+[A-Za-z0-9_.]+\]$", RegexOptions.IgnoreCase);
 
@@ -539,13 +555,21 @@ namespace SphereServerScriptAnalyser
             private FastColoredTextBox fctb;
             private static Button btnOpenFile;
             public static string? _defaultEditorPath;
+            private Button btnAddEof;
 
             public IssueViewerForm(FileReport report)
             {
                 _report = report;
                 InitUi();
                 LoadFileAndIssues();
+
+                this.Shown += (s, e) => {
+                    if (lbIssues.Items.Count > 0 && lbIssues.SelectedIndex >= 0)
+                        LbIssues_SelectedIndexChanged(lbIssues, EventArgs.Empty);
+                };
+
                 LoadEditorPreference();
+                UpdateEofButtonState(); 
             }
 
             private void InitUi()
@@ -562,25 +586,22 @@ namespace SphereServerScriptAnalyser
                 };
                 lbIssues.SelectedIndexChanged += LbIssues_SelectedIndexChanged;
 
-                /*
-                rtb = new RichTextBox
+                btnAddEof = new Button
                 {
-                    Dock = DockStyle.Fill,
-                    Font = new Font("Consolas", 10),
-                    ReadOnly = true,
-                    WordWrap = false
+                    Text = "Add [EOF]",
+                    Dock = DockStyle.Bottom,
+                    Height = 36
                 };
-                */
+                btnAddEof.Click += BtnAddEof_Click;
 
                 fctb = new FastColoredTextBox
                 {
                     Dock = DockStyle.Fill,
                     ReadOnly = true,
-                    ShowLineNumbers = true,   // satır numaraları
+                    ShowLineNumbers = true,
                     WordWrap = false,
                     Font = new Font("Consolas", 10f)
                 };
-
 
                 btnOpenFile = new Button
                 {
@@ -590,33 +611,10 @@ namespace SphereServerScriptAnalyser
                 };
                 btnOpenFile.Click += BtnOpenFile_Click;
 
-                //Controls.Add(rtb);
                 Controls.Add(fctb);
                 Controls.Add(lbIssues);
                 Controls.Add(btnOpenFile);
-            }
-
-            private void LoadFileAndIssuesRichTextBox()
-            {
-                try
-                {
-                    rtb.Text = File.ReadAllText(_report.Path);
-                }
-                catch (Exception ex)
-                {
-                    rtb.Text = $"{Properties.Resources.TheFileCouldNotBeRead} {ex.Message}";
-                }
-
-                lbIssues.Items.Clear();
-                foreach (var issue in _report.Issues.OrderBy(i => i.Line))
-                {
-                    //lbIssues.Items.Add($"L{issue.Line} – {issue.Type}: {issue.Message}");
-                    lbIssues.Items.Add($"L{issue.Line} – {issue.Type}");
-                }
-
-                // Automatically select and highlight the first issue if there is one
-                if (lbIssues.Items.Count > 0)
-                    lbIssues.SelectedIndex = 0;
+                Controls.Add(btnAddEof);
             }
 
             private void LoadFileAndIssues()
@@ -625,21 +623,18 @@ namespace SphereServerScriptAnalyser
                 try { content = File.ReadAllText(_report.Path); }
                 catch (Exception ex) { content = $"{Properties.Resources.TheFileCouldNotBeRead} {ex.Message}"; }
 
-                fctb.Text = content; // içeriği yükle
+                fctb.Text = content;
 
                 lbIssues.Items.Clear();
                 foreach (var issue in _report.Issues.OrderBy(i => i.Line))
                     lbIssues.Items.Add($"L{issue.Line} – {issue.Type}");
 
-                if (lbIssues.Items.Count > 0) lbIssues.SelectedIndex = 0;
-            }
+                if (lbIssues.Items.Count > 0)
+                {
+                    lbIssues.SelectedIndex = 0;
+                    LbIssues_SelectedIndexChanged(lbIssues, EventArgs.Empty);
+                }
 
-            private void LbIssues_SelectedIndexChangedRichTextBox(object sender, EventArgs e)
-            {
-                if (lbIssues.SelectedIndex < 0)
-                    return;
-                var issue = _report.Issues.OrderBy(i => i.Line).ElementAt(lbIssues.SelectedIndex);
-                HighlightLine(issue.Line, Color.LightPink, Color.DarkRed);
             }
 
             private void LbIssues_SelectedIndexChanged(object sender, EventArgs e)
@@ -651,18 +646,13 @@ namespace SphereServerScriptAnalyser
                 HighlightLineFctb(issue.Line);
 
                 int lineIdx = Math.Max(0, issue.Line - 1);
-                // Satıra kaydır:
-                fctb.Navigate(lineIdx);                      // satırı görünür konuma getirir :contentReference[oaicite:2]{index=2}
-                                                             // Satırı seç (basit highlight):
+                fctb.Navigate(lineIdx);
                 var lineText = lineIdx < fctb.LinesCount ? fctb.Lines[lineIdx] : string.Empty;
-                fctb.Selection = new FastColoredTextBoxNS.Range(fctb, new Place(0, lineIdx), new Place(lineText.Length, lineIdx)); // :contentReference[oaicite:3]{index=3}
-                fctb.DoSelectionVisible();                   // seçimi görünür yapar (scroll) :contentReference[oaicite:4]{index=4}
+                fctb.Selection = new FastColoredTextBoxNS.Range(fctb, new Place(0, lineIdx), new Place(lineText.Length, lineIdx));
+                fctb.DoSelectionVisible();
             }
 
-            //private readonly Style _issueStyle = new MarkerStyle(new SolidBrush(Color.FromArgb(60, Color.LightPink)));
-
             private readonly MarkerStyle _highlightStyle = new MarkerStyle(new SolidBrush(Color.FromArgb(60, Color.Red)));
-
 
             private void HighlightLineFctb(int lineNumber)
             {
@@ -670,22 +660,13 @@ namespace SphereServerScriptAnalyser
                     return;
 
                 int line = lineNumber - 1;
-
-                // Önce eski highlight'ı temizle
                 fctb.Range.ClearStyle(_highlightStyle);
-
-                // Satır aralığını bul
                 string text = fctb.Lines[line];
                 var range = new FastColoredTextBoxNS.Range(fctb, new Place(0, line), new Place(text.Length, line));
-
-                // Rengi uygula
                 range.SetStyle(_highlightStyle);
-
-                // O satıra kaydır
                 fctb.Navigate(line);
                 fctb.DoSelectionVisible();
             }
-
 
             private void HighlightLine(int lineNumber, Color backColor, Color foreColor)
             {
@@ -695,103 +676,87 @@ namespace SphereServerScriptAnalyser
                 int start = rtb.GetFirstCharIndexFromLine(zero);
                 if (start < 0)
                     return;
-                // Line length
                 int length = (zero < rtb.Lines.Length) ? rtb.Lines[zero].Length : 0;
 
-                // Reset all formatting first
                 rtb.SelectAll();
                 rtb.SelectionBackColor = Color.White;
                 rtb.SelectionColor = Color.Black;
-
-                // Set color the line
                 rtb.Select(start, length);
                 rtb.SelectionBackColor = backColor;
                 rtb.SelectionColor = foreColor;
-
-                // Scroll to view
                 rtb.SelectionStart = start;
                 rtb.ScrollToCaret();
             }
-
-            private void BtnOpenFile_ClickWithoutCustomEditor(object sender, EventArgs e)
-            {
-                try
-                {
-                    // open in default editor
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = _report.Path,
-                        UseShellExecute = true
-                    };
-                    Process.Start(psi);
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show($"{Properties.Resources.CouldNotOpenFile} {ex.Message}", Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Stop);
-                }
-            }
-
 
             private int GetSelectedIssueLineOrDefault()
             {
                 if (_report?.Issues == null || _report.Issues.Count == 0)
                     return 1;
 
-                // ListBox sıralı ise:
                 if (lbIssues.SelectedIndex >= 0)
                     return _report.Issues.OrderBy(i => i.Line).ElementAt(lbIssues.SelectedIndex).Line;
 
-                // Seçim yoksa ilk issue
                 return _report.Issues.Min(i => i.Line);
-
             }
-
 
             private static string BuildEditorArgs(string editorExePath, string filePath, int line, int col = 1)
             {
                 var exe = Path.GetFileName(editorExePath).ToLowerInvariant();
 
-                // VS Code
                 if (exe is "code.exe" or "code-insiders.exe")
-                {
-                    // --goto path:line:column
                     return $"--goto \"{filePath}:{line}:{col}\"";
-                }
 
-                // Notepad++
                 if (exe == "notepad++.exe")
-                {
-                    // -n<line> -c<column> "file"
                     return $"-n{line} -c{col} \"{filePath}\"";
-                }
 
-                // Sublime Text
                 if (exe is "sublime_text.exe" or "subl.exe")
-                {
-                    // "path:line:column"
                     return $"\"{filePath}:{line}:{col}\"";
-                }
 
-                // Visual Studio (devenv)
                 if (exe == "devenv.exe")
-                {
-                    // Güvenilir tek adım yok; pratik yaklaşım: aç + komutla goto
-                    // /Edit file ile açar; /Command ile satıra atlamak için VS açıldıktan sonra komutu çalıştırır.
-                    // Çoğu zaman yeterlidir:
                     return $"/Edit \"{filePath}\" /Command \"Edit.Goto {line}\"";
-                }
 
-                // Tanımadığımız editor: sadece dosyayı ver (satıra gidemez)
                 return $"\"{filePath}\"";
             }
 
+            //  check eof problem
+            private bool HasNoEofIssue()
+            {
+                return _report.Issues.Any(i => i.Type == "NOEOF");
+            }
+
+
+            private void UpdateEofButtonState()
+            {
+                btnAddEof.Enabled = HasNoEofIssue();
+            }
+
+            private void BtnAddEof_Click(object sender, EventArgs e)
+            {
+                try
+                {
+                    //File.AppendAllText(_report.Path, Environment.NewLine + Environment.NewLine + "[EOF]" + Environment.NewLine);
+                    File.AppendAllText(_report.Path, Environment.NewLine + Environment.NewLine + "[EOF]");
+                    MessageBox.Show(Properties.Resources.AddEOFLineFile, Properties.Resources.Success, MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    // remove NOEOF issue
+                    _report.Issues.RemoveAll(i => i.Type == "NOEOF");
+
+                    // reload
+                    LoadFileAndIssues();
+                    UpdateEofButtonState();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"{Properties.Resources.FileUpdateFailed}:" + ex.Message, Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
 
             private void BtnOpenFile_Click(object sender, EventArgs e)
             {
                 try
                 {
                     int line = GetSelectedIssueLineOrDefault();
-                    int col = 1; // istersen analizde hesaplayıp gerçek kolonu verebilirsin
+                    int col = 1;
 
                     if (!string.IsNullOrEmpty(_defaultEditorPath) && File.Exists(_defaultEditorPath))
                     {
@@ -805,7 +770,6 @@ namespace SphereServerScriptAnalyser
                     }
                     else
                     {
-                        // Sistem varsayılanı: satır desteği yok, normal açar
                         Process.Start(new ProcessStartInfo
                         {
                             FileName = _report.Path,
@@ -819,7 +783,6 @@ namespace SphereServerScriptAnalyser
                         Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             }
-
 
             public void LoadEditorPreference()
             {
@@ -843,7 +806,6 @@ namespace SphereServerScriptAnalyser
 
                 if (!string.IsNullOrEmpty(_defaultEditorPath) && File.Exists(_defaultEditorPath))
                 {
-                    // exe dosyasının adını göster (örnek: code, notepad++)
                     var name = Path.GetFileNameWithoutExtension(_defaultEditorPath);
                     suffix = $" ({name})";
                 }
@@ -852,13 +814,11 @@ namespace SphereServerScriptAnalyser
                 {
                     btnOpenFile.Text = (Properties.Resources.OpenTheFile ?? "Open the file") + suffix;
                 }
-
             }
         }
 
         private async void btnScanAgain_Click(object sender, EventArgs e)
         {
-
             if (string.IsNullOrEmpty(txtFolder.Text))
             {
                 MessageBox.Show(Properties.Resources.NoFolderSelected, Properties.Resources.Error, MessageBoxButtons.OK, MessageBoxIcon.Stop);
@@ -879,12 +839,10 @@ namespace SphereServerScriptAnalyser
             foreach (Control c in root.Controls)
                 ApplyResourcesRecursive(c, res);
 
-            // Menü elemanlarını da güncelle
             if (root is Form f && f.MainMenuStrip != null)
             {
                 foreach (ToolStripItem it in f.MainMenuStrip.Items)
                     res.ApplyResources(it, it.Name);
-                // Alt menüler:
                 foreach (ToolStripMenuItem top in f.MainMenuStrip.Items)
                     foreach (ToolStripItem child in top.DropDownItems)
                         res.ApplyResources(child, child.Name);
@@ -895,25 +853,20 @@ namespace SphereServerScriptAnalyser
         {
             try
             {
-                // 1) Settings’e yaz
                 Properties.Main.Default.Language = cultureName;
                 Properties.Main.Default.Save();
 
-                // 2) Kullanıcıya bilgi ver
                 var result = MessageBox.Show(
-                    Properties.Resources.RestartRequired,   // "Dil değişikliğinin uygulanması için uygulama yeniden başlatılacak. Devam edilsin mi?"
-                    Properties.Resources.Info,              // "Bilgi"
+                    Properties.Resources.RestartRequired,
+                    Properties.Resources.Info,
                     MessageBoxButtons.OKCancel,
                     MessageBoxIcon.Information
                 );
 
-                // 3) Onay verirse yeniden başlat
                 if (result == DialogResult.OK)
                 {
                     Application.Restart();
                 }
-                // else hiçbir şey yapma (iptal ederse)
-
             }
             catch (Exception ex)
             {
@@ -923,7 +876,6 @@ namespace SphereServerScriptAnalyser
                     MessageBoxIcon.Error);
             }
         }
-
 
         private void mitrTR_Click(object sender, EventArgs e)
         {
@@ -944,8 +896,8 @@ namespace SphereServerScriptAnalyser
         {
             using var ofd = new OpenFileDialog
             {
-                Title = "Editör uygulamasını seçin",
-                Filter = "Uygulamalar (*.exe)|*.exe|Tümü (*.*)|*.*",
+                Title = Properties.Resources.SelectTheEditorApp,
+                Filter = $"{Properties.Resources.Applications} (*.exe)|*.exe|{Properties.Resources.All} (*.*)|*.*",
                 CheckFileExists = true
             };
 

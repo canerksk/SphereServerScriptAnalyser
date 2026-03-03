@@ -198,4 +198,22 @@
   <data name="SetDefaultEditor" xml:space="preserve">
     <value>Varsayılan Editor Seç</value>
   </data>
+  <data name="FileUpdateFailed" xml:space="preserve">
+    <value>Dosya güncellenemedi:</value>
+  </data>
+  <data name="Success" xml:space="preserve">
+    <value>Başarılı</value>
+  </data>
+  <data name="SelectTheEditorApp" xml:space="preserve">
+    <value>Editör uygulamasını seçin</value>
+  </data>
+  <data name="Applications" xml:space="preserve">
+    <value>Uygulamalar</value>
+  </data>
+  <data name="All" xml:space="preserve">
+    <value>Tümü</value>
+  </data>
+  <data name="AddEOFLineFile" xml:space="preserve">
+    <value>[EOF] satırı dosyanın sonuna eklendi.</value>
+  </data>
 </root>

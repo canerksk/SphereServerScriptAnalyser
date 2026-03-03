@@ -42,8 +42,9 @@ namespace SphereServerScriptAnalyser
             frCAToolStripMenuItem = new ToolStripMenuItem();
             settingsToolStripMenuItem = new ToolStripMenuItem();
             setDefaultEditorToolStripMenuItem = new ToolStripMenuItem();
-            toolTip1 = new ToolTip(components);
             resetDefaultEditorToolStripMenuItem = new ToolStripMenuItem();
+            toolTip1 = new ToolTip(components);
+            clbRules = new CheckedListBox();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
@@ -51,12 +52,12 @@ namespace SphereServerScriptAnalyser
             // 
             txtFolder.Location = new Point(12, 43);
             txtFolder.Name = "txtFolder";
-            txtFolder.Size = new Size(520, 23);
+            txtFolder.Size = new Size(780, 23);
             txtFolder.TabIndex = 0;
             // 
             // btnSelectFolder
             // 
-            btnSelectFolder.Location = new Point(538, 43);
+            btnSelectFolder.Location = new Point(798, 42);
             btnSelectFolder.Name = "btnSelectFolder";
             btnSelectFolder.Size = new Size(96, 23);
             btnSelectFolder.TabIndex = 1;
@@ -68,10 +69,10 @@ namespace SphereServerScriptAnalyser
             // 
             lvProblems.Columns.AddRange(new ColumnHeader[] { chFile, chIssueCount });
             lvProblems.FullRowSelect = true;
-            lvProblems.Location = new Point(12, 108);
+            lvProblems.Location = new Point(226, 108);
             lvProblems.MultiSelect = false;
             lvProblems.Name = "lvProblems";
-            lvProblems.Size = new Size(622, 360);
+            lvProblems.Size = new Size(668, 382);
             lvProblems.TabIndex = 2;
             lvProblems.UseCompatibleStateImageBehavior = false;
             lvProblems.View = View.Details;
@@ -97,9 +98,9 @@ namespace SphereServerScriptAnalyser
             // 
             // btnScanAgain
             // 
-            btnScanAgain.Location = new Point(12, 474);
+            btnScanAgain.Location = new Point(12, 460);
             btnScanAgain.Name = "btnScanAgain";
-            btnScanAgain.Size = new Size(121, 23);
+            btnScanAgain.Size = new Size(208, 30);
             btnScanAgain.TabIndex = 3;
             btnScanAgain.Text = Properties.Resources.Rescan;
             btnScanAgain.UseVisualStyleBackColor = true;
@@ -110,7 +111,7 @@ namespace SphereServerScriptAnalyser
             menuStrip1.Items.AddRange(new ToolStripItem[] { languageToolStripMenuItem, settingsToolStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
-            menuStrip1.Size = new Size(646, 24);
+            menuStrip1.Size = new Size(906, 24);
             menuStrip1.TabIndex = 4;
             menuStrip1.Text = "menuStrip1";
             // 
@@ -152,22 +153,32 @@ namespace SphereServerScriptAnalyser
             // setDefaultEditorToolStripMenuItem
             // 
             setDefaultEditorToolStripMenuItem.Name = "setDefaultEditorToolStripMenuItem";
-            setDefaultEditorToolStripMenuItem.Size = new Size(180, 22);
+            setDefaultEditorToolStripMenuItem.Size = new Size(177, 22);
             setDefaultEditorToolStripMenuItem.Text = Properties.Resources.SetDefaultEditor;
             setDefaultEditorToolStripMenuItem.Click += setDefaultEditorToolStripMenuItem_Click;
             // 
             // resetDefaultEditorToolStripMenuItem
             // 
             resetDefaultEditorToolStripMenuItem.Name = "resetDefaultEditorToolStripMenuItem";
-            resetDefaultEditorToolStripMenuItem.Size = new Size(180, 22);
+            resetDefaultEditorToolStripMenuItem.Size = new Size(177, 22);
             resetDefaultEditorToolStripMenuItem.Text = "Reset Default Editor";
             resetDefaultEditorToolStripMenuItem.Click += resetDefaultEditorToolStripMenuItem_Click;
+            // 
+            // clbRules
+            // 
+            clbRules.FormattingEnabled = true;
+            clbRules.HorizontalScrollbar = true;
+            clbRules.Location = new Point(12, 108);
+            clbRules.Name = "clbRules";
+            clbRules.Size = new Size(208, 346);
+            clbRules.TabIndex = 5;
             // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(646, 505);
+            ClientSize = new Size(906, 497);
+            Controls.Add(clbRules);
             Controls.Add(btnScanAgain);
             Controls.Add(lblStatus);
             Controls.Add(lvProblems);
@@ -195,5 +206,6 @@ namespace SphereServerScriptAnalyser
         private ToolStripMenuItem settingsToolStripMenuItem;
         private ToolStripMenuItem setDefaultEditorToolStripMenuItem;
         private ToolStripMenuItem resetDefaultEditorToolStripMenuItem;
+        private CheckedListBox clbRules;
     }
 }
